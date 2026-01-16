@@ -98,6 +98,37 @@ Example output schema (JSON):
   - `com.example.application.service` — use-case implementations (application services)
   - `com.example.infrastructure.web` — web controllers, request/response mappers
   - `com.example.infrastructure.persistence` — JPA repositories, DB mappers
+  - `com.example.infrastructure.client` — external API clients (HTTP/gRPC), adapters for calling other services
+
+  **Note:** In this repository `infrastructure` packages contain the concrete adapter implementations (i.e., the "adapters"). The term "adapter" is still correct conceptually, but implementations should be grouped under `infrastructure.*` (persistence, client, web, messaging, etc.).
+
+  Example: external client port + adapter (Java)
+
+  ```java
+  // application/port/out/ExternalApiPort.java
+  package com.example.application.port.out;
+
+  public interface ExternalApiPort {
+    ExternalData fetchData(String id);
+  }
+
+  // infrastructure/client/ExternalApiHttpClient.java
+  package com.example.infrastructure.client;
+
+  @Component
+  public class ExternalApiHttpClient implements ExternalApiPort {
+    private final WebClient webClient;
+
+    public ExternalApiHttpClient(WebClient webClient) { this.webClient = webClient; }
+
+    @Override
+    public ExternalData fetchData(String id) {
+      // call remote service, map response to domain-friendly ExternalData
+      var resp = webClient.get().uri("/api/data/{id}", id).retrieve().bodyToMono(RemoteDto.class).block();
+      return RemoteMapper.toExternalData(resp);
+    }
+  }
+  ```
 
 - Minimal ASCII diagram:
 

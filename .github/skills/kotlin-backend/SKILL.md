@@ -64,6 +64,31 @@ Example package mapping:
 - `com.example.application.service`
 - `com.example.infrastructure.web`
 - `com.example.infrastructure.persistence`
+- `com.example.infrastructure.client` — external API clients (HTTP, gRPC) and adapters for other services
+
+Note: `infrastructure` packages group concrete adapter implementations (the adapters). Use `infrastructure.client` for HTTP/gRPC clients, `infrastructure.persistence` for DB adapters, etc. Interfaces (ports) belong in `application.port.*`.
+
+Kotlin example: external client port + adapter
+
+```kotlin
+// application/port/out/ExternalApiPort.kt
+package com.example.application.port.out
+
+interface ExternalApiPort {
+  suspend fun fetchData(id: String): ExternalData
+}
+
+// infrastructure/client/ExternalApiHttpClient.kt
+package com.example.infrastructure.client
+
+@Component
+class ExternalApiHttpClient(private val webClient: WebClient) : ExternalApiPort {
+  override suspend fun fetchData(id: String): ExternalData {
+    val dto = webClient.get().uri("/api/data/{id}", id).retrieve().bodyToMono(RemoteDto::class.java).awaitFirst()
+    return RemoteMapper.toExternalData(dto)
+  }
+}
+```
 
 ---
 
