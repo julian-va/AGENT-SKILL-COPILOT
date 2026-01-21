@@ -1,13 +1,14 @@
 # AGENT-SKILL-COPILOT
 
-A repository to hold "skills" describing how an AI agent should write, review and maintain backend services.
+A repository to hold "skills" describing how an AI agent should write, review and maintain backend and frontend services.
 
-This project collects machine-readable and human-readable skills that guide automated agents and contributors on conventions, architecture and CI for Java and Kotlin backends.
+This project collects machine-readable and human-readable skills that guide automated agents and contributors on conventions, architecture and CI for Java, Kotlin backends and Angular frontend.
 
 ## Contents
 
 - `.github/skills/java-backend/SKILL.md` — Java backend skill: Hexagonal architecture, style rules, use cases/gateways, examples, CI hints.
 - `.github/skills/kotlin-backend/SKILL.md` — Kotlin backend skill: Kotlin idioms, coroutines, Hexagonal architecture examples and CI suggestions.
+- `.github/skills/angular-frontend/SKILL.md` — Angular frontend skill: Standalone components, signals, Clean Architecture for frontend, Angular Material with Material Design 3.
 
 ## Purpose
 
@@ -18,6 +19,8 @@ These SKILL files are intended for automated agents (and humans) to:
 - Validate and automate work (lint, build, ArchUnit checks, integration tests).
 
 ## Quick Start
+
+### For Backend (Java/Kotlin)
 
 1. Read the relevant skill: `.github/skills/java-backend/SKILL.md` or `.github/skills/kotlin-backend/SKILL.md`.
 2. When asking the agent to make a change, require the agent to return the Reasoning Checklist before producing code (see SKILL.md).
@@ -30,9 +33,24 @@ These SKILL files are intended for automated agents (and humans) to:
    - `infrastructure.entryPoints` — REST controllers and DTOs
    - `infrastructure.config` — bean configuration
 
+### For Frontend (Angular)
+
+1. Read the Angular skill: `.github/skills/angular-frontend/SKILL.md`.
+2. Follow Clean Architecture for frontend:
+   - `core/` — domain models, business logic services, guards
+   - `data/` — repositories, API clients, mappers
+   - `features/` — feature-specific components and services
+   - `shared/` — reusable components, directives, pipes
+   - `layout/` — layout components (header, footer, sidebar)
+3. Use modern Angular: standalone components, signals, `@if/@for/@switch`, `input()/output()` functions
+4. Use Angular Material with Material Design 3 for UI components and theming
+
 ## CI
 
-This repo suggests GitHub Actions workflows that run on JDK 21 and Gradle/Maven. For projects using these skills, add a workflow similar to `.github/workflows/java-ci.yml` (see SKILL.md for snippets).
+This repo suggests GitHub Actions workflows for both backend and frontend:
+
+- **Backend**: JDK 21 with Gradle/Maven (see Java/Kotlin SKILL.md for snippets)
+- **Frontend**: Node.js 20 with pnpm and Angular CLI (see Angular SKILL.md for snippets)
 
 ## Contributing
 
