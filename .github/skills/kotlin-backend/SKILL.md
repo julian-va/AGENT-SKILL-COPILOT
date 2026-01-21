@@ -51,44 +51,60 @@ for this repository. It follows Hexagonal / Clean Architecture conventions and K
 ## Architecture Rules (Hexagonal / Ports & Infrastructure)
 
 - Follow Hexagonal (Ports & Adapters) / Clean Architecture with clear boundaries.
-- Domain layer: pure Kotlin (no Spring/Ktor types), domain entities, domain exceptions.
-- Application/use-case layer: defines inbound/outbound ports (interfaces) and implements use cases.
-- Infrastructure: implementations of ports (web controllers, persistence, external API clients); keep framework types here.
-- Dependency rule: dependencies point inward; domain/use-cases must not depend on infrastructure/frameworks.
+  - **Domain (Core):** Entities, value objects, domain services and domain exceptions — pure Kotlin, no framework types.
+  - **Domain Use Cases:** Use-case interfaces and implementations. Orchestrate domain objects and call gateways.
+  - **Domain Gateways:** Interfaces (outbound ports) for external resources like repositories, email services, etc.
+  - **Infrastructure (Adapters):** Implementations of gateways (driven-adapters) and REST controllers (entry-points). Keep these implementations in `infrastructure` packages.
+  - **Framework & Drivers:** Spring, Ktor, R2DBC, web servers — keep these at the outermost layer.
+
+- Dependency rule: code dependencies must point inward. Inner layers (domain, use-cases) must not depend on adapters or framework types.
+
+- Use cases & gateways conventions:
+  - **Use cases (domain layer):** interfaces and implementations that orchestrate business logic (e.g., `CreateUserUseCase`, `CreateUserUseCaseImpl`).
+  - **Gateways (domain layer):** interfaces for external resources (e.g., `UserRepository`, `EmailService`, `PasswordEncoder`).
+  - Infrastructure adapters live in `infrastructure.drivenAdapters.*` packages and implement the gateway interfaces.
+  - Entry points live in `infrastructure.entryPoints.*` packages and call use case interfaces.
 
 Example package mapping:
 
-- `com.example.domain`
-- `com.example.application.port.in`
-- `com.example.application.port.out`
-- `com.example.application.service`
-- `com.example.infrastructure.web`
-- `com.example.infrastructure.persistence`
-- `com.example.infrastructure.client` — external API clients (HTTP, gRPC) and adapters for other services
+- `com.example.domain.model` — entities, value objects, domain exceptions
+- `com.example.domain.usecase` — use-case interfaces and implementations
+- `com.example.domain.gateway` — outbound port interfaces (repositories, external services)
+- `com.example.infrastructure.drivenAdapters` — gateway implementations (R2DBC, email, security)
+- `com.example.infrastructure.providers` — technical providers (R2DBC entities, SMTP clients, BCrypt)
+- `com.example.infrastructure.entryPoints` — web controllers, request/response DTOs and mappers
+- `com.example.infrastructure.config` — bean configuration and dependency injection setup
 
-Note: `infrastructure` packages group concrete adapter implementations (the adapters). Use `infrastructure.client` for HTTP/gRPC clients, `infrastructure.persistence` for DB adapters, etc. Interfaces (ports) belong in `application.port.*`.
+**Note:** In this repository `infrastructure` packages contain the concrete adapter implementations (i.e., the "adapters"). The term "adapter" is still correct conceptually, but implementations should be grouped under `infrastructure.*` (drivenAdapters, providers, entryPoints, config, etc.).
 
-Kotlin example: external client port + adapter
+Kotlin example: external service gateway + adapter
 
 ```kotlin
-// application/port/out/ExternalApiPort.kt
-package com.example.application.port.out
+// domain/gateway/ExternalApiService.kt
+package com.example.domain.gateway
 
-interface ExternalApiPort {
+interface ExternalApiService {
   suspend fun fetchData(id: String): ExternalData
 }
 
-// infrastructure/client/ExternalApiHttpClient.kt
-package com.example.infrastructure.client
+// infrastructure/drivenAdapters/externalApi/ExternalApiServiceAdapter.kt
+package com.example.infrastructure.drivenAdapters.externalApi
+
+import com.example.domain.gateway.ExternalApiService
+import org.springframework.stereotype.Component
 
 @Component
-class ExternalApiHttpClient(private val webClient: WebClient) : ExternalApiPort {
+class ExternalApiServiceAdapter(private val webClient: WebClient) : ExternalApiService {
   override suspend fun fetchData(id: String): ExternalData {
     val dto = webClient.get().uri("/api/data/{id}", id).retrieve().bodyToMono(RemoteDto::class.java).awaitFirst()
     return RemoteMapper.toExternalData(dto)
   }
 }
 ```
+
+- Minimal ASCII diagram:
+
+  [Entry Points (REST)] -> [Use Case Interface] -> [Use Case Implementation] -> [Gateway Interface] -> [Driven Adapters (DB/External)]
 
 ---
 
@@ -133,68 +149,157 @@ class CreateUserServiceTest : StringSpec({
 
 ---
 
-## Examples (Kotlin minimal layout & code)
+## Examples (project structure)
+
+### Hexagonal Architecture - Detailed Structure
+
+```
+user-management/
+├── applications/
+│   └── app-service/
+│       └── src/main/kotlin/com/example/
+│           └── MainApplication.kt
+│
+├── domain/
+│   ├── model/
+│   │   ├── User.kt
+│   │   ├── Email.kt
+│   │   └── exception/
+│   │       ├── UserNotFoundException.kt
+│   │       └── InvalidEmailException.kt
+│   │
+│   ├── usecase/
+│   │   ├── CreateUserUseCase.kt
+│   │   ├── GetUserUseCase.kt
+│   │   ├── UpdateUserUseCase.kt
+│   │   └── DeleteUserUseCase.kt
+│   │
+│   └── gateway/
+│       ├── UserRepository.kt
+│       ├── EmailService.kt
+│       └── PasswordEncoder.kt
+│
+└── infrastructure/
+    ├── driven-adapters/
+    │   ├── r2dbc-repository/
+    │   │   ├── UserRepositoryAdapter.kt
+    │   │   └── mapper/
+    │   │       └── UserMapper.kt
+    │   │
+    │   ├── email-sender/
+    │   │   └── EmailServiceAdapter.kt
+    │   │
+    │   └── security/
+    │       └── PasswordEncoderAdapter.kt
+    │
+    ├── providers/
+    │   ├── r2dbc/
+    │   │   ├── UserR2dbcRepository.kt
+    │   │   ├── entities/
+    │   │   │   └── UserEntity.kt
+    │   │   └── config/
+    │   │       └── R2dbcConfig.kt
+    │   │
+    │   ├── smtp/
+    │   │   ├── SmtpClient.kt
+    │   │   └── config/
+    │   │       └── EmailConfig.kt
+    │   │
+    │   └── bcrypt/
+    │       └── BCryptProvider.kt
+    │
+    ├── entry-points/
+    │   └── api-rest/
+    │       ├── UserController.kt
+    │       ├── dto/
+    │       │   ├── CreateUserRequest.kt
+    │       │   ├── UpdateUserRequest.kt
+    │       │   └── UserResponse.kt
+    │       └── mapper/
+    │           └── UserDtoMapper.kt
+    │
+    └── config/
+        └── BeanConfiguration.kt
+```
+
+### Minimal project layout
 
 ```
 src/main/kotlin/com/example
   /domain
-  /application/port/in
-  /application/port/out
-  /application/service
-  /infrastructure/web
-  /infrastructure/persistence
+    /model
+    /usecase
+    /gateway
+  /infrastructure
+    /drivenAdapters
+    /providers
+    /entryPoints
+    /config
 src/test/kotlin/com/example
 ```
 
-Inbound port (application/port/in):
+Sample flow (entry-points -> use case -> gateway -> driven-adapters):
+
+Use case interface (domain/usecase):
 
 ```kotlin
-package com.example.application.port.`in`
+package com.example.domain.usecase
 
 fun interface CreateUserUseCase {
   suspend fun create(command: CreateUserCommand): Long
 }
 ```
 
-Outbound port (application/port/out):
+Gateway interface (domain/gateway):
 
 ```kotlin
-package com.example.application.port.out
+package com.example.domain.gateway
 
-interface UserRepositoryPort {
-  suspend fun save(user: UserEntity): UserEntity
-  suspend fun findById(id: Long): UserEntity?
+import com.example.domain.model.User
+
+interface UserRepository {
+  suspend fun save(user: User): User
+  suspend fun findById(id: Long): User?
 }
 ```
 
-Use-case implementation (application/service):
+Use-case implementation (domain/usecase):
 
 ```kotlin
-package com.example.application.service
+package com.example.domain.usecase
 
-class CreateUserService(
-  private val repository: UserRepositoryPort
+import com.example.domain.gateway.UserRepository
+import com.example.domain.model.User
+
+class CreateUserUseCaseImpl(
+  private val repository: UserRepository
 ) : CreateUserUseCase {
   override suspend fun create(command: CreateUserCommand): Long {
-    val user = UserEntity.create(command.name, command.email)
+    val user = User.create(command.name, command.email)
     val saved = repository.save(user)
     return saved.id
   }
 }
 ```
 
-Infrastructure web controller (Spring + coroutines example):
+REST Controller (infrastructure/entryPoints/apiRest) — calls use case, maps DTO->domain via mapper:
 
 ```kotlin
-package com.example.infrastructure.web
+package com.example.infrastructure.entryPoints.apiRest
+
+import com.example.domain.usecase.CreateUserUseCase
+import org.springframework.http.HttpStatus
+import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.*
 
 @RestController
+@RequestMapping("/api/users")
 class UserController(
   private val createUser: CreateUserUseCase,
-  private val mapper: UserMapper
+  private val mapper: UserDtoMapper
 ) {
-  @PostMapping("/users")
-  suspend fun create(@RequestBody dto: CreateUserDto): ResponseEntity<Map<String, Long>> {
+  @PostMapping
+  suspend fun create(@RequestBody dto: CreateUserRequest): ResponseEntity<Map<String, Long>> {
     val cmd = mapper.toCommand(dto)
     val id = createUser.create(cmd)
     return ResponseEntity.status(HttpStatus.CREATED).body(mapOf("id" to id))
@@ -202,17 +307,45 @@ class UserController(
 }
 ```
 
-Mapper (infrastructure):
+DTO Mapper (infrastructure/entryPoints/apiRest/mapper):
 
 ```kotlin
-package com.example.infrastructure.web
+package com.example.infrastructure.entryPoints.apiRest.mapper
 
-class UserMapper {
-  fun toCommand(dto: CreateUserDto) = CreateUserCommand(dto.name, dto.email)
+import com.example.domain.usecase.CreateUserCommand
+import com.example.infrastructure.entryPoints.apiRest.dto.CreateUserRequest
+
+class UserDtoMapper {
+  fun toCommand(dto: CreateUserRequest) = CreateUserCommand(dto.name, dto.email)
 }
 ```
 
-Persistence adapter implements `UserRepositoryPort` and maps between DB entities and domain entities.
+Repository Adapter (infrastructure/drivenAdapters/r2dbcRepository) implements `UserRepository` gateway:
+
+```kotlin
+package com.example.infrastructure.drivenAdapters.r2dbcRepository
+
+import com.example.domain.gateway.UserRepository
+import com.example.domain.model.User
+import com.example.infrastructure.providers.r2dbc.UserR2dbcRepository
+import org.springframework.stereotype.Component
+
+@Component
+class UserRepositoryAdapter(
+  private val r2dbcRepository: UserR2dbcRepository,
+  private val mapper: UserMapper
+) : UserRepository {
+  override suspend fun save(user: User): User {
+    val entity = mapper.toEntity(user)
+    val saved = r2dbcRepository.save(entity)
+    return mapper.toDomain(saved)
+  }
+
+  override suspend fun findById(id: Long): User? {
+    return r2dbcRepository.findById(id)?.let { mapper.toDomain(it) }
+  }
+}
+```
 
 ---
 
@@ -220,11 +353,19 @@ Persistence adapter implements `UserRepositoryPort` and maps between DB entities
 
 Before producing code the agent must provide a short checklist containing:
 
-1. Affected layer(s) (infrastructure/application/domain)
+1. Affected layer(s) (entry-point/use-case/domain-model/gateway/driven-adapter)
 2. Chosen abstractions and DTOs/entities
 3. Design validation vs. rules above (list exceptions)
-4. Ports affected (inbound/outbound) and mapper responsibilities
+4. Use cases and gateways affected, mapper responsibilities (DTO -> domain)
 5. Dependency validation (confirm no inward-dependency violations)
+
+Example response the agent must produce before code:
+
+```
+Layer: domain/usecase + infrastructure/drivenAdapters
+Abstraction: CreateUserUseCase (interface + implementation) + UserRepositoryAdapter
+Validation: Uses constructor injection, domain layer unchanged, function length <= 30
+```
 
 If a request violates these rules, explain why and propose alternatives.
 
@@ -259,17 +400,31 @@ jobs:
 
 ## Architecture verification (optional)
 
-- Recommend ArchUnit or equivalent checks to assert dependency rules. ArchUnit (Java) works for Kotlin bytecode.
-
-Example (Java/Kotlin test file):
+- Use ArchUnit to assert that package dependencies point inward. ArchUnit (Java) works for Kotlin bytecode. Example tests:
 
 ```java
 @AnalyzeClasses(packages = "com.example")
 class ArchitectureTest {
+
   @ArchTest
   static final ArchRule domain_should_not_depend_on_infrastructure =
     classes().that().resideInAPackage("..domain..")
-      .should().onlyDependOnClassesThat().resideInAnyPackage("..domain..", "java..", "kotlin..", "org.slf4j..");
+      .should().onlyDependOnClassesThat()
+      .resideInAnyPackage("..domain..", "java..", "kotlin..", "kotlinx..", "org.slf4j..");
+
+  @ArchTest
+  static final ArchRule use_cases_should_only_depend_on_domain_and_gateways =
+    classes().that().resideInAPackage("..domain.usecase..")
+      .should().onlyDependOnClassesThat()
+      .resideInAnyPackage("..domain..", "java..", "kotlin..", "kotlinx..", "org.slf4j..");
+
+  @ArchTest
+  static final ArchRule driven_adapters_should_implement_gateways =
+    classes().that().resideInAPackage("..infrastructure.drivenAdapters..")
+      .should().implement(
+        DescribedPredicate.describe("gateway interfaces",
+          cls -> cls.getPackageName().contains("domain.gateway"))
+      );
 }
 ```
 
@@ -277,9 +432,10 @@ class ArchitectureTest {
 
 ## Notes & Exceptions
 
-- Prefer coroutines in application and infrastructure layers for asynchronous I/O
-- Keep transactional boundaries in application/service layer, not in controllers
-- Document any exception to method-length or immutability rules in PR description
+- Prefer coroutines in use-case and infrastructure layers for asynchronous I/O
+- Keep transactional boundaries in use-case layer (`domain.usecase`), not in controllers (`infrastructure.entryPoints`)
+- Document any exception to function-length or immutability rules in PR description
+- Use `@Transactional` sparingly and only at the use-case implementation level
 
 ---
 

@@ -70,56 +70,53 @@ Example output schema (JSON):
 
 - Follow Hexagonal (Ports & Adapters) / Clean Architecture principles. Emphasize clear
   boundaries between core business logic and external frameworks.
-
   - **Domain (Core):** Entities, value objects, domain services and domain exceptions — pure Java, no framework types.
-  - **Application / Use Cases:** Use-case implementations and application services. Orchestrate domain objects.
-  - **Ports (Interfaces):** Inbound ports (input) and outbound ports (output) defined by the application layer.
-  - **Infrastructure (Adapters):** Implementations of ports (REST controllers, persistence, external API clients). Keep these implementations in `infrastructure` packages.
+  - **Domain Use Cases:** Use-case interfaces and implementations. Orchestrate domain objects and call gateways.
+  - **Domain Gateways:** Interfaces (outbound ports) for external resources like repositories, email services, etc.
+  - **Infrastructure (Adapters):** Implementations of gateways (driven-adapters) and REST controllers (entry-points). Keep these implementations in `infrastructure` packages.
   - **Framework & Drivers:** Spring, JPA, web servers, DB drivers — keep these at the outermost layer.
 
 - Dependency rule: code dependencies must point inward. Inner layers (domain, use-cases) must not depend on adapters or framework types.
 
-- Ports & adapters conventions:
-
-  - **Inbound ports (input):** interfaces the adapters call to trigger use cases (e.g., `CreateUserUseCase`).
-  - **Outbound ports (output):** interfaces the use cases call to access external resources (e.g., `UserRepositoryPort`).
-  - Infrastructure adapters live in `infrastructure.*` packages and implement the port interfaces.
+- Use cases & gateways conventions:
+  - **Use cases (domain layer):** interfaces and implementations that orchestrate business logic (e.g., `CreateUserUseCase`, `CreateUserUseCaseImpl`).
+  - **Gateways (domain layer):** interfaces for external resources (e.g., `UserRepository`, `EmailService`, `PasswordEncoder`).
+  - Infrastructure adapters live in `infrastructure.drivenAdapters.*` packages and implement the gateway interfaces.
+  - Entry points live in `infrastructure.entryPoints.*` packages and call use case interfaces.
 
 - Mapping and boundaries:
-
   - Keep DTOs, REST models and mappers inside adapter layers; convert to/from domain objects at the boundary.
   - Do not leak framework-specific types (e.g., `Entity`, `@Entity`, Spring `HttpServletRequest`) into domain/use-case packages.
 
 - Example package layout (hexagonal style):
+  - `com.example.domain.model` — entities, value objects, domain exceptions
+  - `com.example.domain.usecase` — use-case interfaces and implementations
+  - `com.example.domain.gateway` — outbound port interfaces (repositories, external services)
+  - `com.example.infrastructure.drivenAdapters` — gateway implementations (JPA, email, security)
+  - `com.example.infrastructure.providers` — technical providers (JPA entities, SMTP clients, BCrypt)
+  - `com.example.infrastructure.entryPoints` — web controllers, request/response DTOs and mappers
+  - `com.example.infrastructure.config` — bean configuration and dependency injection setup
 
-  - `com.example.domain` — entities, value objects, domain exceptions
-  - `com.example.application.port.in` — inbound port interfaces (use-case inputs)
-  - `com.example.application.port.out` — outbound port interfaces (repositories/gateways)
-  - `com.example.application.service` — use-case implementations (application services)
-  - `com.example.infrastructure.web` — web controllers, request/response mappers
-  - `com.example.infrastructure.persistence` — JPA repositories, DB mappers
-  - `com.example.infrastructure.client` — external API clients (HTTP/gRPC), adapters for calling other services
+  **Note:** In this repository `infrastructure` packages contain the concrete adapter implementations (i.e., the "adapters"). The term "adapter" is still correct conceptually, but implementations should be grouped under `infrastructure.*` (drivenAdapters, providers, entryPoints, config, etc.).
 
-  **Note:** In this repository `infrastructure` packages contain the concrete adapter implementations (i.e., the "adapters"). The term "adapter" is still correct conceptually, but implementations should be grouped under `infrastructure.*` (persistence, client, web, messaging, etc.).
-
-  Example: external client port + adapter (Java)
+  Example: external service gateway + adapter (Java)
 
   ```java
-  // application/port/out/ExternalApiPort.java
-  package com.example.application.port.out;
+  // domain/gateway/ExternalApiService.java
+  package com.example.domain.gateway;
 
-  public interface ExternalApiPort {
+  public interface ExternalApiService {
     ExternalData fetchData(String id);
   }
 
-  // infrastructure/client/ExternalApiHttpClient.java
-  package com.example.infrastructure.client;
+  // infrastructure/drivenAdapters/externalApi/ExternalApiServiceAdapter.java
+  package com.example.infrastructure.drivenAdapters.externalApi;
 
   @Component
-  public class ExternalApiHttpClient implements ExternalApiPort {
+  public class ExternalApiServiceAdapter implements ExternalApiService {
     private final WebClient webClient;
 
-    public ExternalApiHttpClient(WebClient webClient) { this.webClient = webClient; }
+    public ExternalApiServiceAdapter(WebClient webClient) { this.webClient = webClient; }
 
     @Override
     public ExternalData fetchData(String id) {
@@ -132,7 +129,7 @@ Example output schema (JSON):
 
 - Minimal ASCII diagram:
 
-  [Infrastructure In (Web)] -> [Inbound Port Interface] -> [Use Case / Application Service] -> [Outbound Port Interface] -> [Infrastructure Out (DB/External)]
+  [Entry Points (REST)] -> [Use Case Interface] -> [Use Case Implementation] -> [Gateway Interface] -> [Driven Adapters (DB/External)]
 
 - Rationale: hexagonal boundaries improve testability, make adapters replaceable, and enforce single responsibility and separation of concerns.
 
@@ -197,17 +194,17 @@ class UserServiceTest {
 
 When asked to implement or modify code, the agent must return a short checklist containing:
 
-1. Affected layer(s) (controller/service/domain/repository)
+1. Affected layer(s) (entry-point/use-case/domain-model/gateway/driven-adapter)
 2. Chosen abstraction(s) and DTOs/entities
 3. Design validation vs. rules above (list any rule exceptions)
-4. Ports affected (inbound/outbound) and mapper responsibilities (DTO -> domain)
+4. Use cases and gateways affected, mapper responsibilities (DTO -> domain)
 5. Dependency validation: confirm no inward-dependencies are violated
 
 Example response the agent must produce before code:
 
 ```
-Layer: service
-Abstraction: UserService (interface) + UserServiceImpl
+Layer: domain/usecase + infrastructure/drivenAdapters
+Abstraction: CreateUserUseCase (interface + implementation) + UserRepositoryAdapter
 Validation: Uses constructor injection, domain layer unchanged, method length <= 30
 ```
 
@@ -215,80 +212,169 @@ If a request violates the rules, explain why and propose an alternative.
 
 ---
 
-## Examples (minimal project layout)
+## Examples (project structure)
+
+### Hexagonal Architecture - Detailed Structure
+
+```
+user-management/
+├── applications/
+│   └── app-service/
+│       └── src/main/java/com/example/
+│           └── MainApplication.java
+│
+├── domain/
+│   ├── model/
+│   │   ├── User.java
+│   │   ├── Email.java
+│   │   └── exception/
+│   │       ├── UserNotFoundException.java
+│   │       └── InvalidEmailException.java
+│   │
+│   ├── usecase/
+│   │   ├── CreateUserUseCase.java
+│   │   ├── GetUserUseCase.java
+│   │   ├── UpdateUserUseCase.java
+│   │   └── DeleteUserUseCase.java
+│   │
+│   └── gateway/
+│       ├── UserRepository.java
+│       ├── EmailService.java
+│       └── PasswordEncoder.java
+│
+└── infrastructure/
+    ├── driven-adapters/
+    │   ├── jpa-repository/
+    │   │   ├── UserRepositoryAdapter.java
+    │   │   └── mapper/
+    │   │       └── UserMapper.java
+    │   │
+    │   ├── email-sender/
+    │   │   └── EmailServiceAdapter.java
+    │   │
+    │   └── security/
+    │       └── PasswordEncoderAdapter.java
+    │
+    ├── providers/
+    │   ├── jpa/
+    │   │   ├── UserJpaRepository.java
+    │   │   ├── entities/
+    │   │   │   └── UserEntity.java
+    │   │   └── config/
+    │   │       └── JpaConfig.java
+    │   │
+    │   ├── smtp/
+    │   │   ├── SmtpClient.java
+    │   │   └── config/
+    │   │       └── EmailConfig.java
+    │   │
+    │   └── bcrypt/
+    │       └── BCryptProvider.java
+    │
+    ├── entry-points/
+    │   └── api-rest/
+    │       ├── UserController.java
+    │       ├── dto/
+    │       │   ├── CreateUserRequest.java
+    │       │   ├── UpdateUserRequest.java
+    │       │   └── UserResponse.java
+    │       └── mapper/
+    │           └── UserDtoMapper.java
+    │
+    └── config/
+        └── BeanConfiguration.java
+```
+
+### Minimal project layout
 
 ```
 src/main/java/com/example
   /domain
-  /application/port/in
-  /application/port/out
-  /application/service
-  /infrastructure/web
-  /infrastructure/persistence
+    /model
+    /usecase
+    /gateway
+  /infrastructure
+    /drivenAdapters
+    /providers
+    /entryPoints
+    /config
 src/test/java/com/example
 ```
 
-Sample flow (infrastructure -> port -> use case -> port -> infrastructure):
+Sample flow (entry-points -> use case -> gateway -> driven-adapters):
 
-Inbound port interface (application/port/in):
+Use case interface (domain/usecase):
 
 ```java
-package com.example.application.port.in;
+package com.example.domain.usecase;
 
 public interface CreateUserUseCase {
   long create(CreateUserCommand command);
 }
 ```
 
-Outbound port interface (application/port/out):
+Gateway interface (domain/gateway):
 
 ```java
-package com.example.application.port.out;
+package com.example.domain.gateway;
 
-public interface UserRepositoryPort {
-  UserEntity save(UserEntity user);
-  Optional<UserEntity> findById(long id);
+import com.example.domain.model.User;
+import java.util.Optional;
+
+public interface UserRepository {
+  User save(User user);
+  Optional<User> findById(long id);
 }
 ```
 
-Use-case implementation (application/service):
+Use-case implementation (domain/usecase):
 
 ```java
-package com.example.application.service;
+package com.example.domain.usecase;
 
-public class CreateUserService implements CreateUserUseCase {
-  private final UserRepositoryPort repository;
+import com.example.domain.gateway.UserRepository;
+import com.example.domain.model.User;
 
-  public CreateUserService(UserRepositoryPort repository) {
+public class CreateUserUseCaseImpl implements CreateUserUseCase {
+  private final UserRepository repository;
+
+  public CreateUserUseCaseImpl(UserRepository repository) {
     this.repository = repository;
   }
 
   @Override
   public long create(CreateUserCommand command) {
-    var user = UserEntity.of(command.name(), command.email());
+    var user = User.of(command.name(), command.email());
     var saved = repository.save(user);
     return saved.getId();
   }
 }
 ```
 
-Infrastructure web controller (infrastructure/web) — calls inbound port, maps DTO->domain via mapper:
+REST Controller (infrastructure/entryPoints/apiRest) — calls use case, maps DTO->domain via mapper:
 
 ```java
-package com.example.infrastructure.web;
+package com.example.infrastructure.entryPoints.apiRest;
+
+import com.example.domain.usecase.CreateUserUseCase;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import java.util.Map;
 
 @RestController
+@RequestMapping("/api/users")
 public class UserController {
   private final CreateUserUseCase createUser;
-  private final UserMapper mapper;
+  private final UserDtoMapper mapper;
 
-  public UserController(CreateUserUseCase createUser, UserMapper mapper) {
+  public UserController(CreateUserUseCase createUser, UserDtoMapper mapper) {
     this.createUser = createUser;
     this.mapper = mapper;
   }
 
-  @PostMapping("/users")
-  public ResponseEntity<Map<String, Long>> create(@RequestBody CreateUserDto dto) {
+  @PostMapping
+  public ResponseEntity<Map<String, Long>> create(@RequestBody CreateUserRequest dto) {
     var cmd = mapper.toCommand(dto);
     long id = createUser.create(cmd);
     return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("id", id));
@@ -296,19 +382,55 @@ public class UserController {
 }
 ```
 
-Mapper example (infrastructure layer):
+DTO Mapper (infrastructure/entryPoints/apiRest/mapper):
 
 ```java
-package com.example.infrastructure.web;
+package com.example.infrastructure.entryPoints.apiRest.mapper;
 
-public class UserMapper {
-  public CreateUserCommand toCommand(CreateUserDto dto) {
+import com.example.domain.usecase.CreateUserCommand;
+import com.example.infrastructure.entryPoints.apiRest.dto.CreateUserRequest;
+
+public class UserDtoMapper {
+  public CreateUserCommand toCommand(CreateUserRequest dto) {
     return new CreateUserCommand(dto.name(), dto.email());
   }
 }
 ```
 
-Persistence adapter (infrastructure/persistence) implements `UserRepositoryPort` and maps between persistence entities and domain entities.
+Repository Adapter (infrastructure/drivenAdapters/jpaRepository) implements `UserRepository` gateway:
+
+```java
+package com.example.infrastructure.drivenAdapters.jpaRepository;
+
+import com.example.domain.gateway.UserRepository;
+import com.example.domain.model.User;
+import com.example.infrastructure.providers.jpa.UserJpaRepository;
+import org.springframework.stereotype.Component;
+import java.util.Optional;
+
+@Component
+public class UserRepositoryAdapter implements UserRepository {
+  private final UserJpaRepository jpaRepository;
+  private final UserMapper mapper;
+
+  public UserRepositoryAdapter(UserJpaRepository jpaRepository, UserMapper mapper) {
+    this.jpaRepository = jpaRepository;
+    this.mapper = mapper;
+  }
+
+  @Override
+  public User save(User user) {
+    var entity = mapper.toEntity(user);
+    var saved = jpaRepository.save(entity);
+    return mapper.toDomain(saved);
+  }
+
+  @Override
+  public Optional<User> findById(long id) {
+    return jpaRepository.findById(id).map(mapper::toDomain);
+  }
+}
+```
 
 ---
 
@@ -350,15 +472,31 @@ jobs:
 
 ## Architecture verification (optional)
 
-- Use ArchUnit to assert that package dependencies point inward. Minimal test example:
+- Use ArchUnit to assert that package dependencies point inward. Example tests:
 
 ```java
 @AnalyzeClasses(packages = "com.example")
 class ArchitectureTest {
+
   @ArchTest
   static final ArchRule domain_should_not_depend_on_infrastructure =
     classes().that().resideInAPackage("..domain..")
-      .should().onlyDependOnClassesThat().resideInAnyPackage("..domain..", "java..", "org.slf4j..");
+      .should().onlyDependOnClassesThat()
+      .resideInAnyPackage("..domain..", "java..", "org.slf4j..");
+
+  @ArchTest
+  static final ArchRule use_cases_should_only_depend_on_domain_and_gateways =
+    classes().that().resideInAPackage("..domain.usecase..")
+      .should().onlyDependOnClassesThat()
+      .resideInAnyPackage("..domain..", "java..", "org.slf4j..");
+
+  @ArchTest
+  static final ArchRule driven_adapters_should_implement_gateways =
+    classes().that().resideInAPackage("..infrastructure.drivenAdapters..")
+      .should().implement(
+        DescribedPredicate.describe("gateway interfaces",
+          cls -> cls.getPackageName().contains("domain.gateway"))
+      );
 }
 ```
 
@@ -370,7 +508,8 @@ class ArchitectureTest {
 
 ## Transactions & AOP
 
-- Prefer to apply `@Transactional` and cross-cutting concerns at the application/use-case layer (`application.service`). Avoid placing transactional boundaries in `infrastructure.web` (controllers).
+- Prefer to apply `@Transactional` and cross-cutting concerns at the use-case layer (`domain.usecase`). Avoid placing transactional boundaries in `infrastructure.entryPoints` (controllers).
+- Use AOP aspects sparingly and only for true cross-cutting concerns like logging, security, or transaction management.
 
 ---
 

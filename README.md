@@ -6,8 +6,8 @@ This project collects machine-readable and human-readable skills that guide auto
 
 ## Contents
 
-- `.github/skills/java-backend/SKILL.md` — Java backend skill: Hexagonal architecture, style rules, ports/examples, CI hints.
-- `.github/skills/kotlin-backend/SKILL.md` — Kotlin backend skill: Kotlin idioms, coroutines, Hexagonal examples and CI suggestions.
+- `.github/skills/java-backend/SKILL.md` — Java backend skill: Hexagonal architecture, style rules, use cases/gateways, examples, CI hints.
+- `.github/skills/kotlin-backend/SKILL.md` — Kotlin backend skill: Kotlin idioms, coroutines, Hexagonal architecture examples and CI suggestions.
 
 ## Purpose
 
@@ -21,7 +21,14 @@ These SKILL files are intended for automated agents (and humans) to:
 
 1. Read the relevant skill: `.github/skills/java-backend/SKILL.md` or `.github/skills/kotlin-backend/SKILL.md`.
 2. When asking the agent to make a change, require the agent to return the Reasoning Checklist before producing code (see SKILL.md).
-3. Follow package conventions: use `application.port.in`, `application.port.out`, `application.service`, `infrastructure.*`, `domain`.
+3. Follow package conventions:
+   - `domain.model` — entities, value objects, domain exceptions
+   - `domain.usecase` — use-case interfaces and implementations
+   - `domain.gateway` — interfaces for external resources (repositories, services)
+   - `infrastructure.drivenAdapters` — gateway implementations
+   - `infrastructure.providers` — technical providers (DB, SMTP, security)
+   - `infrastructure.entryPoints` — REST controllers and DTOs
+   - `infrastructure.config` — bean configuration
 
 ## CI
 
