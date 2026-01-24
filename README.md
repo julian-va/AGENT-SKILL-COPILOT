@@ -9,6 +9,7 @@ This project collects machine-readable and human-readable skills that guide auto
 - `.github/skills/java-backend/SKILL.md` — Java backend skill: Hexagonal architecture, style rules, use cases/gateways, examples, CI hints.
 - `.github/skills/kotlin-backend/SKILL.md` — Kotlin backend skill: Kotlin idioms, coroutines, Hexagonal architecture examples and CI suggestions.
 - `.github/skills/angular-frontend/SKILL.md` — Angular frontend skill: Standalone components, signals, Clean Architecture for frontend, Angular Material with Material Design 3.
+- `.github/skills/python-backend/SKILL.md` — Python backend skill: FastAPI, Pydantic, MCPs, testing, observability and CI examples.
 
 ## Purpose
 
