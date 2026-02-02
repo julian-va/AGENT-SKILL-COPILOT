@@ -1,0 +1,65 @@
+name: Copilot PR checks
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate PR body and commits
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const pr = context.payload.pull_request;
+            if (!pr) throw new Error('No pull_request in context');
+            const body = pr.body || '';
+            const hasPreview = /Preview:|Previsualizaci[oó]n:/i.test(body);
+            if (!hasPreview) core.setFailed('La PR debe incluir una sección "Preview:" con la previsualización mínima.');
+
+            const commits = await github.paginate(github.rest.pulls.listCommits, {owner: context.repo.owner, repo: context.repo.repo, pull_number: pr.number});
+            const bad = commits.find(c => {
+              const name = (c.commit && c.commit.author && c.commit.author.name) || '';
+              const email = (c.commit && c.commit.author && c.commit.author.email) || '';
+              return /copilot/i.test(name) || /copilot/i.test(email);
+            });
+            if (bad) core.setFailed(`Commit author contains 'Copilot' in commit ${bad.sha}`);
+
+      - name: Run tests and linters (if present)
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -f package.json ]; then
+            echo "Found package.json -> checking scripts"
+            has_test=$(node -e "const p=require('./package.json'); console.log(!!(p.scripts && p.scripts.test))") || true
+            has_lint=$(node -e "const p=require('./package.json'); console.log(!!(p.scripts && p.scripts.lint))") || true
+            npm ci --silent
+            if [ "$has_test" = "true" ]; then
+              npm test --silent
+            else
+              echo "No npm test script; skipping"
+            fi
+            if [ "$has_lint" = "true" ]; then
+              npm run lint --silent
+            else
+              echo "No npm lint script; skipping"
+            fi
+          fi
+
+          if [ -f pyproject.toml ] || [ -f requirements.txt ]; then
+            echo "Python project detected -> running pytest if available"
+            python -m pip install -r requirements.txt || true
+            if command -v pytest >/dev/null 2>&1; then
+              pytest -q
+            else
+              echo "pytest not installed or no tests found; skipping"
+            fi
+          fi
+
+      - name: Note
+        run: echo "Copilot checks completed"
