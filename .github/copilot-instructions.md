@@ -1,89 +1,89 @@
 # GitHub Copilot Instructions
 
-## Objetivo
+## Objective
 
-Proveer reglas claras, reproducibles y automatizables para el uso de GitHub Copilot en este repositorio: estilo de commits, idioma, previsualización, pruebas, seguridad y excepciones.
+Provide clear, reproducible, and automatable rules for using GitHub Copilot in this repository: commit style, language, preview, tests, security, and exceptions.
 
-## Alcance
+## Scope
 
-- Se aplica a todos los cambios propuestos por Copilot que afecten al código fuente, tests o infra del repositorio.
-- Excepciones: documentación de producto en otros idiomas, archivos de configuración específicos (documentar cada excepción en la PR).
+- Applies to all changes proposed by Copilot that affect repository source code, tests, or infrastructure.
+- Exceptions: product documentation in other languages, specific configuration files (document each exception in the PR).
 
-## Reglas generales
+## General Rules
 
 1. Commits
-   - Nunca usar el usuario **"Copilot"** como autor de commits. El commit debe realizarse siempre con el usuario Git configurado por la persona responsable.
-   - Convención de mensaje recomendada: `<type>(<scope>): <short summary>` (ej.: `feat(auth): add JWT refresh endpoint`).
-   - Tipo comunes: `feat`, `fix`, `chore`, `docs`, `test`, `refactor`.
+   - Never use the **"Copilot"** user as the commit author. Commits must always be made using the Git user configured by the responsible person.
+   - Recommended commit message convention: `<type>(<scope>): <short summary>` (e.g., `feat(auth): add JWT refresh endpoint`).
+   - Common types: `feat`, `fix`, `chore`, `docs`, `test`, `refactor`.
 
-2. Idioma
-   - **Código fuente y docstrings**: English.
-   - **Mensajes de PR, previsualizaciones y la comunicación de Copilot hacia el mantenedor**: Español.
-   - Documentación extensa puede incluir versiones en ambos idiomas si procede.
+2. Language
+   - **Source code and docstrings**: English.
+   - **PR messages, previews, and Copilot-to-maintainer communication**: Spanish.
+   - Extended documentation may include both languages when appropriate.
 
-3. Comentarios en el código
-   - No insertar comentarios explicativos que describan la lógica de forma redundante. Las explicaciones deben ir en la previsualización de la PR.
-   - Docstrings públicos (APIs) pueden escribirse en English.
+3. Code comments
+   - Do not add redundant explanatory comments that describe the logic. Explanations should be in the PR preview.
+   - Public docstrings (APIs) may be written in English.
 
-4. Previsualización (Preview) obligatoria
-   - Antes de proponer cambios, Copilot debe generar una previsualización con esta plantilla mínima:
-     - **Resumen:** breve descripción del cambio.
-     - **Archivos modificados:** lista corta.
-     - **Tests incluidos/afectados:** sí/no + resumen.
-     - **Cómo validar localmente:** comandos (ej.: `npm test`, `pytest`).
-     - **Riesgos conocidos / rollback:** breve.
+4. Mandatory preview
+   - Before proposing changes, Copilot must generate a preview with this minimum template:
+     - **Summary:** brief description of the change.
+     - **Modified files:** short list.
+     - **Tests included/affected:** yes/no + summary.
+     - **How to validate locally:** commands (e.g. `npm test`, `pytest`).
+     - **Known risks / rollback:** brief.
      - **Checklist:** tests ✅, linter ✅, CI ✅.
-   - Copilot no debe aplicar cambios no triviales sin aprobación humana.
+   - Copilot must not apply non-trivial changes without human approval.
 
-5. Estructura de respuestas (obligatorio)
-   - Cuando la respuesta incluya pasos, opciones o escenarios:
-     - Estar **numerados**.
-     - Ser **claros y concisos** (2–4 líneas por paso cuando sea posible).
-     - Seguir un **orden lógico** y priorizar la acción recomendada.
-   - Si hay alternativas, enumerarlas y marcar la opción recomendada con una breve justificación.
-   - Ejemplo de formato:
-     1. Paso 1: Breve acción y motivo (1–2 líneas).
-     2. Paso 2: Acción siguiente y comando de verificación (1–2 líneas).
-     3. Resultado esperado / nota de excepción (opcional).
-   - Plantilla rápida:
-     1. [Acción breve] — [Comando / comprobación]
-     2. [Acción breve] — [Comando / comprobación]
+5. Response structure (mandatory)
+   - When the response includes steps, options, or scenarios:
+     - Be **numbered**.
+     - Be **clear and concise** (2–4 lines per step when possible).
+     - Follow a **logical order** and prioritize the recommended action.
+   - If there are alternatives, list them and mark the recommended option with a brief justification.
+   - Example format:
+     1. Step 1: Brief action and reason (1–2 lines).
+     2. Step 2: Next action and verification command (1–2 lines).
+     3. Expected result / exception note (optional).
+   - Quick template:
+     1. [Brief action] — [Command / check]
+     2. [Brief action] — [Command / check]
 
-6. Pull Requests y flujo
-   - Copilot debe proponer cambios mediante PRs; no se permite push directo a ramas protegidas.
-   - Checklist mínimo para PRs:
-     1. Descripción clara y referencia a issue (si aplica).
-     2. Previsualización incluida (ver plantilla).
-     3. Tests añadidos/actualizados cuando corresponda.
-     4. Linters/formatters aplicados.
+6. Pull requests and workflow
+   - Copilot must propose changes through PRs; direct push to protected branches is not allowed.
+   - Minimum PR checklist:
+     1. Clear description and issue reference (if applicable).
+     2. Included preview (see template).
+     3. Tests added/updated when appropriate.
+     4. Linters/formatters applied.
      5. CI passing.
-     6. Aprobación de al menos un mantenedor en cambios funcionales.
+     6. Maintainer approval for functional changes.
 
-7. Tests, linters y hooks
-   - Todo cambio funcional debe incluir tests automáticos.
-   - Incluir comandos para ejecutar tests y linters localmente (ej.: `npm test`, `pytest`, `npm run lint`).
-   - Usar pre-commit hooks (`pre-commit`, `husky`) para ejecutar checks básicos antes de commit.
+7. Tests, linters, and hooks
+   - Every functional change must include automated tests.
+   - Include commands to run tests and linters locally (e.g. `npm test`, `pytest`, `npm run lint`).
+   - Use pre-commit hooks (`pre-commit`, `husky`) to run basic checks before commit.
 
-8. Seguridad y dependencias
-   - Prohibido incluir secretos o credenciales en el código. Usar herramientas de secret-scanning en CI.
-   - Escaneo de vulnerabilidades a la hora de añadir dependencias (Dependabot/Snyk o similar).
+8. Security and dependencies
+   - Do not include secrets or credentials in code. Use CI secret-scanning tools.
+   - Perform vulnerability scanning when adding dependencies (Dependabot/Snyk or similar).
 
-9. Licencias y terceros
-   - Verificar compatibilidad de licencias al copiar snippets de terceros y documentar la fuente en la PR.
+9. Licenses and third parties
+   - Verify license compatibility when copying third-party snippets and document the source in the PR.
 
-10. Cuándo escalar a revisión humana
-    - Cambios en infra, arquitectura, seguridad, performance o que afecten contratos públicos requieren aprobación explícita de un mantenedor.
+10. When to escalate to human review
+    - Infrastructure, architecture, security, performance, or changes affecting public contracts require explicit maintainer approval.
 
-11. Automatización de cumplimiento (CI)
-    - CI debe validar al menos:
-      - Que el autor del commit no sea "Copilot".
-      - Que la PR incluya la previsualización obligatoria.
-      - Que tests y linters pasen (cuando existan).
-      - Que no se añadan comentarios explicativos en el código (donde sea aplicable por linters).
+11. Compliance automation (CI)
+    - CI must validate at minimum:
+      - Commit author is not "Copilot".
+      - PR includes the mandatory preview.
+      - Tests and linters pass (where present).
+      - No redundant explanatory code comments are added (where linter applies).
 
-## Plantillas y ejemplos
+## Templates and examples
 
-### Ejemplo de mensaje de commit
+### Commit message example
 
 ```
 feat(auth): add JWT refresh endpoint
@@ -92,28 +92,28 @@ feat(auth): add JWT refresh endpoint
 - Add unit tests for refresh token logic
 ```
 
-### Plantilla mínima para previsualización (Preview)
+### Minimum preview template
 
-- Resumen:
-- Archivos modificados:
-- Tests incluidos:
-- Cómo validar localmente:
+- Summary:
+- Modified files:
+- Tests included:
+- How to validate locally:
   - `npm test` / `pytest`
-- Riesgos y mitigación:
+- Risks and mitigation:
 - Checklist:
   - [ ] Tests
   - [ ] Linter
   - [ ] CI passed
 
-### Ejemplo de checklist de PR
+### PR checklist example
 
-- [ ] Descripción y contexto
-- [ ] Previsualización incluida
-- [ ] Tests añadidos/actualizados
+- [ ] Description and context
+- [ ] Preview included
+- [ ] Tests added/updated
 - [ ] Linters/formatters ok
-- [ ] CI verde
-- [ ] Aprobación de mantenedor (si aplica)
+- [ ] CI successful
+- [ ] Maintainer approval (if applicable)
 
 ---
 
-Estas instrucciones deben aplicarse **en todas las interacciones y sugerencias de código** realizadas por GitHub Copilot en este repositorio.
+These instructions must be applied **to all interactions and code suggestions** made by GitHub Copilot in this repository.
