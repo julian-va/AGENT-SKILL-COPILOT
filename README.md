@@ -10,6 +10,7 @@ This project collects machine-readable and human-readable skills that guide auto
 - `.github/skills/kotlin-backend/SKILL.md` — Kotlin backend skill: Kotlin idioms, coroutines, Hexagonal architecture examples and CI suggestions.
 - `.github/skills/angular-frontend/SKILL.md` — Angular frontend skill: Standalone components, signals, Clean Architecture for frontend, Angular Material with Material Design 3.
 - `.github/skills/python-backend/SKILL.md` — Python backend skill: FastAPI, Pydantic, MCPs, testing, observability and CI examples.
+- `.github/skills/docker/SKILL.md` — Docker skill: Dockerfile, docker build/run, Docker Compose, seguridad y mejores prácticas.
 
 ## Purpose
 
@@ -45,6 +46,21 @@ These SKILL files are intended for automated agents (and humans) to:
    - `layout/` — layout components (header, footer, sidebar)
 3. Use modern Angular: standalone components, signals, `@if/@for/@switch`, `input()/output()` functions
 4. Use Angular Material with Material Design 3 for UI components and theming
+
+### For Docker
+
+1. Read the Docker skill: `.github/skills/docker/SKILL.md`.
+2. Crea o actualiza tus `Dockerfile` con:
+   - base oficial (ej. `node:20-alpine`, `python:3.12-slim`)
+   - `USER appuser` (mínimos privilegios), `WORKDIR /app`
+   - `COPY --chown=appuser:appuser . /app` y `RUN chmod`/`chown` según sea necesario
+3. Usa Docker Compose para entornos multi-servicio:
+   - `docker compose up -d`, `docker compose ps`, `docker compose logs`
+   - `env_file`, `volumes`, `restart: unless-stopped`, `depends_on`
+4. Añade validación y escaneo:
+   - `docker compose config`
+   - `docker scan` / `trivy` / `grype`
+   - no ejecutar contenedores privilegiados sin necesidad
 
 ## CI
 

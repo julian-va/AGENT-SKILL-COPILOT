@@ -1,57 +1,57 @@
 # Docker Skill
 
-## Descripción
+## Description
 
-Skill para proporcionar comandos y prácticas recomendadas de Docker dentro del agente Copilot.
+Skill to provide Docker commands and recommended practices inside the Copilot agent.
 
-## Objetivo
+## Objective
 
-Ayudar al usuario a:
+Help the user to:
 
-- Escribir y depurar Dockerfile
-- Usar docker build / run / compose
-- Optimizar imágenes y almacenamiento en caché
-- Solucionar errores comunes
+- Write and debug Dockerfiles
+- Use docker build / run / compose
+- Optimize images and cache
+- Troubleshoot common issues
 
-## Docker Compose: alcance específico
+## Docker Compose: specific scope
 
-- Crear `docker-compose.yml` para proyectos multi-servicio (app, DB, cache, redes)
-- Configurar reinicios, volúmenes y env vars de forma segura (`.env`, `env_file`)
-- Optimizar con `build` + `cache_from`, `depends_on`, y `profiles`
-- Convertir `docker run` a Compose y viceversa
-- Diagnóstico de Compose: `docker-compose config`, `docker compose ps`, `logs` y `events`
+- Create `docker-compose.yml` for multi-service projects (app, DB, cache, networks)
+- Securely configure restarts, volumes, and env vars (`.env`, `env_file`)
+- Optimize with `build` + `cache_from`, `depends_on`, and `profiles`
+- Convert `docker run` to Compose and vice versa
+- Compose diagnostics: `docker compose config`, `docker compose ps`, `logs`, and `events`
 
-## Instrucciones para el asistente
+## Instructions for the assistant
 
-1. Cuando el usuario pida ayuda con Docker, responde con:
-   - Pasos claros y simples
-   - Comandos reproducibles
-   - Ejemplos de `Dockerfile`, `docker-compose.yml`, `docker build` y `docker run`
-2. Evita explicar demasiado los conceptos básicos a menos que el usuario lo pida.
-3. Ofrece siempre un bloque de comandos listos para copiar.
-4. Recuérdale al usuario que las imágenes deben usar principios de privilegios mínimos:
-   - `USER` no-root siempre que sea posible.
-   - No ejecutar procesos como root dentro del contenedor.
-   - Evitar capacidades privilegiadas (`--privileged`) sin necesidad.
-   - Uso de `chmod`/`chown` en build para asegurar acceso correcto a archivos.
+1. When the user asks for Docker help, respond with:
+   - clear, simple steps
+   - reproducible commands
+   - examples of `Dockerfile`, `docker-compose.yml`, `docker build`, and `docker run`
+2. Avoid explaining too much basic concepts unless requested.
+3. Always offer a copy-ready command block.
+4. Remind the user that images should follow least-privilege principles:
+   - `USER` non-root whenever possible.
+   - Do not run processes as root inside the container.
+   - Avoid privileged capabilities (`--privileged`) unless necessary.
+   - Use `chmod`/`chown` in build to ensure proper file access.
 
-## Ejemplo de interacción
+## Interaction examples
 
-- Usuario: "Necesito un Dockerfile para una app Node.js que use npm ci y cache en un solo layer"
-- Respuesta deseada:
-  - Dockerfile sugerido
-  - Explicación concisa de caching
-  - Comando `docker build -t app:latest .`
+- User: "I need a Dockerfile for a Node.js app that uses npm ci and caches in one layer"
+- Desired response:
+  - Suggested Dockerfile
+  - Concise caching explanation
+  - Command `docker build -t app:latest .`
 
-- Usuario: "Tengo una app web con Nginx + API Python + Postgres, dame un docker-compose.yml"
-- Respuesta deseada:
-  - `docker-compose.yml` de 3 servicios
-  - Uso de `depends_on`, `volumes` y `restart: unless-stopped`
-  - Comandos de ejecución `docker compose up -d` y validación `docker compose ps`
+- User: "I have a web app with Nginx + Python API + Postgres, give me a docker-compose.yml"
+- Desired response:
+  - 3-service `docker-compose.yml`
+  - Use of `depends_on`, `volumes`, and `restart: unless-stopped`
+  - Run command `docker compose up -d` and validation `docker compose ps`
 
-## Formato de salida preferido
+## Preferred output format
 
-- Título corto (p.ej., `docker build`)
-- Etiquetas de sintaxis markdown
-- Atajos de comandos
-- Sugerencias de validación (p.ej., `docker inspect`, `docker logs`)
+- Short title (e.g., `docker build`)
+- Markdown syntax highlighting
+- Command shortcuts
+- Validation suggestions (e.g., `docker inspect`, `docker logs`)
