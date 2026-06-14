@@ -61,7 +61,7 @@ for this repository. It follows Hexagonal / Clean Architecture conventions and K
 
 - Use cases & gateways conventions:
   - **Use cases (domain layer):** interfaces and implementations that orchestrate business logic (e.g., `CreateUserUseCase`, `CreateUserUseCaseImpl`).
-  - **Gateways (domain layer):** interfaces for external resources (e.g., `UserRepository`, `EmailService`, `PasswordEncoder`).
+  - **Gateways (domain layer):** interfaces for external resources (e.g., `UserGateway`, `EmailGateway`, `PasswordEncoderGateway`).
   - Infrastructure adapters live in `infrastructure.drivenAdapters.*` packages and implement the gateway interfaces.
   - Entry points live in `infrastructure.entryPoints.*` packages and call use case interfaces.
 
@@ -80,21 +80,21 @@ Example package mapping:
 Kotlin example: external service gateway + adapter
 
 ```kotlin
-// domain/gateway/ExternalApiService.kt
+// domain/gateway/ExternalApiGateway.kt
 package com.example.domain.gateway
 
-interface ExternalApiService {
+interface ExternalApiGateway {
   suspend fun fetchData(id: String): ExternalData
 }
 
-// infrastructure/drivenAdapters/externalApi/ExternalApiServiceAdapter.kt
+// infrastructure/drivenAdapters/externalApi/ExternalApiGatewayAdapter.kt
 package com.example.infrastructure.drivenAdapters.externalApi
 
-import com.example.domain.gateway.ExternalApiService
+import com.example.domain.gateway.ExternalApiGateway
 import org.springframework.stereotype.Component
 
 @Component
-class ExternalApiServiceAdapter(private val webClient: WebClient) : ExternalApiService {
+class ExternalApiGatewayAdapter(private val webClient: WebClient) : ExternalApiGateway {
   override suspend fun fetchData(id: String): ExternalData {
     val dto = webClient.get().uri("/api/data/{id}", id).retrieve().bodyToMono(RemoteDto::class.java).awaitFirst()
     return RemoteMapper.toExternalData(dto)
@@ -115,6 +115,35 @@ class ExternalApiServiceAdapter(private val webClient: WebClient) : ExternalApiS
 - Use constructor injection (prefer `@Component` / `@Service` where needed).
 - Keep controllers thin: map DTO -> domain command and call inbound port.
 - Logging: use SLF4J (Logback) or Kotlin-friendly logger; do NOT use `println`.
+
+---
+
+## Concurrency and Coroutines
+
+- Determine the recommended model from the project stack:
+  - If the project includes Kotlin coroutine/reactive dependencies (for example `kotlinx-coroutines-core`, `kotlinx-coroutines-reactor`, `kotlinx-coroutines-reactive`, or uses `suspend`, `Flow`, `StateFlow`, `SharedFlow`), prefer Kotlin concurrency with coroutines and flows.
+  - If the project does not include Kotlin coroutine/reactive support, recommend Java 21 concurrency idioms instead.
+
+### Kotlin concurrency (when coroutines/Flow are available)
+
+- Prefer Kotlin coroutines instead of raw threads.
+- Use structured concurrency with `CoroutineScope`, `supervisorScope`, and `coroutineScope` to group related work.
+- Prefer `Dispatchers.IO` for blocking I/O and `Dispatchers.Default` for CPU-bound work.
+- Avoid spawning threads manually; use `launch`, `async`, or `withContext` instead.
+- Keep shared mutable state minimal and prefer immutable data classes.
+- Use thread-safe collections and synchronization only when necessary.
+- Close coroutine scopes cleanly and handle cancellation explicitly.
+- Do not block event-loop threads in Ktor or reactive Spring WebFlux; use suspending APIs instead.
+
+### Java concurrency fallback (when Kotlin coroutine support is absent)
+
+- Use Java 21 concurrency idioms for non-Kotlin-concurrency stacks.
+- Prefer virtual threads for many blocking tasks: `Executors.newVirtualThreadPerTaskExecutor()`.
+- Prefer structured concurrency with `StructuredTaskScope` and `StructuredTaskScope.ShutdownOnFailure`.
+- Avoid `new Thread(...)` and manual thread management.
+- Use `ExecutorService`, `CompletableFuture`, and higher-level concurrency abstractions.
+- Keep shared mutable state minimal and favor immutable domain objects.
+- Shut down executors cleanly (`shutdown()` / `shutdownNow()`), ideally with try-with-resources.
 
 ---
 
@@ -175,9 +204,9 @@ user-management/
 │   │   └── DeleteUserUseCase.kt
 │   │
 │   └── gateway/
-│       ├── UserRepository.kt
-│       ├── EmailService.kt
-│       └── PasswordEncoder.kt
+│       ├── UserGateway.kt
+│       ├── EmailGateway.kt
+│       └── PasswordEncoderGateway.kt
 │
 └── infrastructure/
     ├── driven-adapters/
@@ -211,6 +240,8 @@ user-management/
     ├── entry-points/
     │   └── api-rest/
     │       ├── UserController.kt
+    │       ├── exception/
+    │       │   └── ApiExceptionHandler.kt
     │       ├── dto/
     │       │   ├── CreateUserRequest.kt
     │       │   ├── UpdateUserRequest.kt
@@ -257,7 +288,7 @@ package com.example.domain.gateway
 
 import com.example.domain.model.User
 
-interface UserRepository {
+interface UserGateway {
   suspend fun save(user: User): User
   suspend fun findById(id: Long): User?
 }
@@ -268,11 +299,11 @@ Use-case implementation (domain/usecase):
 ```kotlin
 package com.example.domain.usecase
 
-import com.example.domain.gateway.UserRepository
+import com.example.domain.gateway.UserGateway
 import com.example.domain.model.User
 
 class CreateUserUseCaseImpl(
-  private val repository: UserRepository
+  private val repository: UserGateway
 ) : CreateUserUseCase {
   override suspend fun create(command: CreateUserCommand): Long {
     val user = User.create(command.name, command.email)
@@ -320,12 +351,12 @@ class UserDtoMapper {
 }
 ```
 
-Repository Adapter (infrastructure/drivenAdapters/r2dbcRepository) implements `UserRepository` gateway:
+Repository Adapter (infrastructure/drivenAdapters/r2dbcRepository) implements `UserGateway` gateway:
 
 ```kotlin
 package com.example.infrastructure.drivenAdapters.r2dbcRepository
 
-import com.example.domain.gateway.UserRepository
+import com.example.domain.gateway.UserGateway
 import com.example.domain.model.User
 import com.example.infrastructure.providers.r2dbc.UserR2dbcRepository
 import org.springframework.stereotype.Component
@@ -334,7 +365,7 @@ import org.springframework.stereotype.Component
 class UserRepositoryAdapter(
   private val r2dbcRepository: UserR2dbcRepository,
   private val mapper: UserMapper
-) : UserRepository {
+) : UserGateway {
   override suspend fun save(user: User): User {
     val entity = mapper.toEntity(user)
     val saved = r2dbcRepository.save(entity)

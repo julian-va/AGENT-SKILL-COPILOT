@@ -102,18 +102,18 @@ Example output schema (JSON):
   Example: external service gateway + adapter (Java)
 
   ```java
-  // domain/gateway/ExternalApiService.java
+  // domain/gateway/ExternalApiGateway.java
   package com.example.domain.gateway;
 
-  public interface ExternalApiService {
+  public interface ExternalApiGateway {
     ExternalData fetchData(String id);
   }
 
-  // infrastructure/drivenAdapters/externalApi/ExternalApiServiceAdapter.java
+  // infrastructure/drivenAdapters/externalApi/ExternalApiGatewayAdapter.java
   package com.example.infrastructure.drivenAdapters.externalApi;
 
   @Component
-  public class ExternalApiServiceAdapter implements ExternalApiService {
+  public class ExternalApiGatewayAdapter implements ExternalApiGateway {
     private final WebClient webClient;
 
     public ExternalApiServiceAdapter(WebClient webClient) { this.webClient = webClient; }
@@ -143,6 +143,21 @@ Example output schema (JSON):
 - Avoid `@Autowired` in favor of constructor injection
 - Use `@ConfigurationProperties` for typed configuration
 - Logging: use SLF4J/Logback; do NOT use `System.out.println`
+
+---
+
+## Concurrency and Threading
+
+- Prefer Java 21 concurrency idioms over manual thread management.
+- Use virtual threads for large numbers of blocking tasks:
+  - `Executors.newVirtualThreadPerTaskExecutor()`
+- Prefer structured concurrency for grouped task scopes:
+  - `StructuredTaskScope` and `StructuredTaskScope.ShutdownOnFailure`
+- Avoid `new Thread(...)` unless a platform thread is explicitly required.
+- Keep shared mutable state minimal and prefer immutable domain objects.
+- Avoid blocking calls in event-loop/reactive code; if blocking is required, use virtual threads or separate thread pools.
+- Always shut down executors cleanly (`shutdown()` / `shutdownNow()`), and prefer try-with-resources when possible.
+- Use higher-level abstractions (`CompletableFuture`, `ExecutorService`, `ConcurrentHashMap`) instead of low-level synchronization where practical.
 
 ---
 
@@ -238,9 +253,9 @@ user-management/
 │   │   └── DeleteUserUseCase.java
 │   │
 │   └── gateway/
-│       ├── UserRepository.java
-│       ├── EmailService.java
-│       └── PasswordEncoder.java
+│       ├── UserGateway.java
+│       ├── EmailGateway.java
+│       └── PasswordEncoderGateway.java
 │
 └── infrastructure/
     ├── driven-adapters/
@@ -274,6 +289,8 @@ user-management/
     ├── entry-points/
     │   └── api-rest/
     │       ├── UserController.java
+    │       ├── exception/
+    │       │   └── ApiExceptionHandler.java
     │       ├── dto/
     │       │   ├── CreateUserRequest.java
     │       │   ├── UpdateUserRequest.java
@@ -321,7 +338,7 @@ package com.example.domain.gateway;
 import com.example.domain.model.User;
 import java.util.Optional;
 
-public interface UserRepository {
+public interface UserGateway {
   User save(User user);
   Optional<User> findById(long id);
 }
@@ -332,13 +349,13 @@ Use-case implementation (domain/usecase):
 ```java
 package com.example.domain.usecase;
 
-import com.example.domain.gateway.UserRepository;
+import com.example.domain.gateway.UserGateway;
 import com.example.domain.model.User;
 
 public class CreateUserUseCaseImpl implements CreateUserUseCase {
-  private final UserRepository repository;
+  private final UserGateway repository;
 
-  public CreateUserUseCaseImpl(UserRepository repository) {
+  public CreateUserUseCaseImpl(UserGateway repository) {
     this.repository = repository;
   }
 
@@ -402,14 +419,14 @@ Repository Adapter (infrastructure/drivenAdapters/jpaRepository) implements `Use
 ```java
 package com.example.infrastructure.drivenAdapters.jpaRepository;
 
-import com.example.domain.gateway.UserRepository;
+import com.example.domain.gateway.UserGateway;
 import com.example.domain.model.User;
 import com.example.infrastructure.providers.jpa.UserJpaRepository;
 import org.springframework.stereotype.Component;
 import java.util.Optional;
 
 @Component
-public class UserRepositoryAdapter implements UserRepository {
+public class UserRepositoryAdapter implements UserGateway {
   private final UserJpaRepository jpaRepository;
   private final UserMapper mapper;
 
